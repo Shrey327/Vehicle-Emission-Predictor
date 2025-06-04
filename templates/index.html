@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Emission Predictor</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #2ecc71;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --info-color: #3498db;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--dark-color);
+            padding-top: 2rem;
+            padding-bottom: 3rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--primary-color);
+        }
+        
+        .header h1 {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            color: #7f8c8d;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 2rem;
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-header {
+            padding: 1.25rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        .result {
+            display: none;
+            margin-top: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .form-label {
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+        
+        .form-control {
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            border: 1px solid #ced4da;
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+        
+        .form-control:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+        
+        .btn {
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .nav-tabs {
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 1.5rem;
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            color: #7f8c8d;
+            font-weight: 500;
+            padding: 0.75rem 1.25rem;
+            transition: all 0.3s;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            color: var(--secondary-color);
+            border: none;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: var(--secondary-color);
+            background-color: transparent;
+            border: none;
+            border-bottom: 3px solid var(--secondary-color);
+        }
+        
+        .plot-container {
+            width: 100%;
+            height: 400px;
+            margin-top: 1.5rem;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .json-example {
+            font-size: 0.85rem;
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            border: 1px solid #e9ecef;
+        }
+        
+        .json-example pre {
+            margin: 0;
+            color: #2c3e50;
+        }
+        
+        .table-container {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 1.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e9ecef;
+        }
+        
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table th {
+            position: sticky;
+            top: 0;
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 500;
+            padding: 0.75rem;
+        }
+        
+        .result-card {
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .result-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+        }
+        
+        .parameter-list {
+            list-style-type: none;
+            padding-left: 0;
+            margin-top: 1rem;
+        }
+        
+        .parameter-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .parameter-name {
+            font-weight: 500;
+            color: var(--dark-color);
+        }
+        
+        .parameter-value {
+            font-weight: 600;
+            color: var(--secondary-color);
+        }
+        
+        .error-container {
+            background-color: rgba(231, 76, 60, 0.1);
+            border-left: 4px solid var(--danger-color);
+            border-radius: 0.5rem;
+            padding: 1rem 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .note {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: #7f8c8d;
+        }
+        
+        .field-container {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+        
+        .field-icon {
+            position: absolute;
+            top: 0.75rem;
+            left: 1rem;
+            color: #7f8c8d;
+        }
+        
+        .icon-input {
+            padding-left: 2.5rem;
+        }
+        
+        .select-wrapper {
+            position: relative;
+        }
+        
+        .select-wrapper::after {
+            content: '▼';
+            font-size: 0.8rem;
+            position: absolute;
+            top: 0.75rem;
+            right: 1rem;
+            color: #7f8c8d;
+            pointer-events: none;
+        }
+        
+        select.form-control {
+            appearance: none;
+            padding-right: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-car"></i> Vehicle Emission Predictor</h1>
+            <p>Estimate carbon emissions based on vehicle parameters or trajectory data</p>
+        </div>
+        
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <!-- Navigation Tabs -->
+                <ul class="nav nav-tabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="singlePredictTab" href="#" onclick="switchTab('singlePredict')">
+                            <i class="fas fa-calculator"></i> Single Prediction
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="trajectoryPredictTab" href="#" onclick="switchTab('trajectoryPredict')">
+                            <i class="fas fa-chart-line"></i> Trajectory Analysis
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Single Prediction Card -->
+                <div class="card" id="singlePredictContent">
+                    <div class="card-header">
+                        <h3 class="mb-0"><i class="fas fa-car-side"></i> Vehicle Emission Calculator</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="predictionForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="field-container">
+                                        <label for="vehicleClass" class="form-label">Vehicle Class</label>
+                                        <div class="select-wrapper">
+                                            <select class="form-control" id="vehicleClass" required>
+                                                <option value="" disabled selected>Select vehicle class</option>
+                                                <option value="0">SUV</option>
+                                                <option value="1">Sedan</option>
+                                                <option value="2">Truck</option>
+                                                <option value="3">Compact</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="field-container">
+                                        <label for="fuelType" class="form-label">Fuel Type</label>
+                                        <div class="select-wrapper">
+                                            <select class="form-control" id="fuelType" required>
+                                                <option value="" disabled selected>Select fuel type</option>
+                                                <option value="0">Gasoline</option>
+                                                <option value="1">Diesel</option>
+                                                <option value="2">Electric</option>
+                                                <option value="3">Hybrid</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="field-container">
+                                        <label for="engineSize" class="form-label">Engine Size (L)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-engine"></i></span>
+                                            <input type="number" step="0.1" min="0.5" max="10" class="form-control" id="engineSize" required>
+                                        </div>
+                                        <div class="note">Typical range: 1.0 - 6.0 L</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="field-container">
+                                        <label for="cylinders" class="form-label">Cylinders</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-cog"></i></span>
+                                            <input type="number" step="1" min="3" max="12" class="form-control" id="cylinders" required>
+                                        </div>
+                                        <div class="note">Typical range: 3 - 12</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="field-container">
+                                        <label for="cityL100km" class="form-label">Fuel Consumption City (L/100 km)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-city"></i></span>
+                                            <input type="number" step="0.1" min="4" max="25" class="form-control" id="cityL100km" required>
+                                        </div>
+                                        <div class="note">Typical range: 6.0 - 15.0</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="field-container">
+                                        <label for="hwyL100km" class="form-label">Fuel Consumption Hwy (L/100 km)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-road"></i></span>
+                                            <input type="number" step="0.1" min="3" max="20" class="form-control" id="hwyL100km" required>
+                                        </div>
+                                        <div class="note">Typically lower than city consumption</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="field-container">
+                                        <label for="combL100km" class="form-label">Fuel Consumption Comb (L/100 km)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-gas-pump"></i></span>
+                                            <input type="number" step="0.1" min="3" max="20" class="form-control" id="combL100km" required>
+                                        </div>
+                                        <div class="note">Should be between city and highway values</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="field-container">
+                                        <label for="combMpg" class="form-label">Fuel Consumption Comb (mpg)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-tachometer-alt"></i></span>
+                                            <input type="number" step="0.1" min="10" max="100" class="form-control" id="combMpg" required>
+                                        </div>
+                                        <div class="note">Conversion: 235.214 / (L/100km)</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid gap-2 col-md-6 mx-auto mt-4">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-calculator"></i> Calculate Emissions
+                                </button>
+                            </div>
+                        </form>
+
+                        <div class="result-card" id="result" style="display: none;">
+                            <div class="text-center mb-4">
+                                <i class="fas fa-leaf fa-3x text-success mb-3"></i>
+                                <h4>Prediction Result</h4>
+                                <div class="result-value">
+                                    <span id="prediction"></span> g/km
+                                </div>
+                            </div>
+                            
+                            <h5><i class="fas fa-clipboard-list"></i> Input Parameters:</h5>
+                            <ul class="parameter-list" id="inputParams"></ul>
+                        </div>
+
+                        <div class="error-container" id="error" style="display: none;">
+                            <h4><i class="fas fa-exclamation-triangle text-danger"></i> Error</h4>
+                            <p id="errorMessage"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trajectory Analysis Card -->
+                <div class="card" id="trajectoryContent" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="mb-0"><i class="fas fa-chart-line"></i> Trajectory Analysis</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="trajectoryForm">
+                            <div class="mb-4">
+                                <label for="trajectoryInput" class="form-label">Trajectory Points (JSON)</label>
+                                <textarea class="form-control" id="trajectoryInput" rows="8" required></textarea>
+                                <div class="note mt-2">
+                                    <i class="fas fa-info-circle"></i> Enter trajectory points in JSON format. Each point needs time (seconds) and speed (m/s).
+                                </div>
+                                <div class="json-example">
+                                    <pre>{
+  "points": [
+    {"time": 0, "speed": 10},
+    {"time": 30, "speed": 15},
+    {"time": 60, "speed": 12},
+    {"time": 90, "speed": 8}
+  ],
+  "original_emission": 1234.56
+}</pre>
+                                </div>
+                                <div class="note mt-2">
+                                    <i class="fas fa-lightbulb text-warning"></i> <strong>Tip:</strong> Include at least 4 points for better interpolation.
+                                </div>
+                            </div>
+                            <div class="d-grid gap-2 col-md-6 mx-auto">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-chart-line"></i> Analyze Trajectory
+                                </button>
+                            </div>
+                        </form>
+
+                        <div id="trajectoryResults" style="display: none;">
+                            <div class="result-card">
+                                <div class="text-center mb-4">
+                                    <i class="fas fa-chart-pie fa-3x text-primary mb-3"></i>
+                                    <h4>Analysis Results</h4>
+                                    <div class="result-value">
+                                        <span id="totalEmission"></span> g
+                                    </div>
+                                </div>
+                                <div id="emissionDifference" class="alert alert-info text-center"></div>
+                            </div>
+
+                            <div class="plot-container">
+                                <div id="speedPlot"></div>
+                            </div>
+                            <div class="plot-container">
+                                <div id="emissionPlot"></div>
+                            </div>
+
+                            <div class="table-container">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Time (s)</th>
+                                            <th>Speed (m/s)</th>
+                                            <th>Acceleration (m/s²)</th>
+                                            <th>Emission (g/s)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="trajectoryTable"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="error-container" id="trajectoryError" style="display: none;">
+                            <h4><i class="fas fa-exclamation-triangle text-danger"></i> Error</h4>
+                            <p id="trajectoryErrorMessage"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="mt-5 text-center text-muted">
+            <p><small>Vehicle Emission Predictor &copy; 2023 | Environmental Sustainability Project</small></p>
+        </footer>
+    </div>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function switchTab(tab) {
+            document.getElementById('singlePredictContent').style.display = 'none';
+            document.getElementById('trajectoryContent').style.display = 'none';
+            document.getElementById('singlePredictTab').classList.remove('active');
+            document.getElementById('trajectoryPredictTab').classList.remove('active');
+            
+            if (tab === 'singlePredict') {
+                document.getElementById('singlePredictContent').style.display = 'block';
+                document.getElementById('singlePredictTab').classList.add('active');
+            } else {
+                document.getElementById('trajectoryContent').style.display = 'block';
+                document.getElementById('trajectoryPredictTab').classList.add('active');
+            }
+        }
+
+        document.getElementById('predictionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            const vehicleClass = document.getElementById('vehicleClass').value;
+            const engineSize = parseFloat(document.getElementById('engineSize').value);
+            const cylinders = parseInt(document.getElementById('cylinders').value);
+            const fuelType = document.getElementById('fuelType').value;
+            const cityL100km = parseFloat(document.getElementById('cityL100km').value);
+            const hwyL100km = parseFloat(document.getElementById('hwyL100km').value);
+            const combL100km = parseFloat(document.getElementById('combL100km').value);
+            const combMpg = parseFloat(document.getElementById('combMpg').value);
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        vehicle_class: vehicleClass,
+                        engine_size: engineSize,
+                        cylinders: cylinders,
+                        fuel_type: fuelType,
+                        city_l_100km: cityL100km,
+                        hwy_l_100km: hwyL100km,
+                        comb_l_100km: combL100km,
+                        comb_mpg: combMpg
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'An error occurred while making the prediction');
+                }
+                if (!data.emission_prediction) {
+                    throw new Error('No prediction value received from the server');
+                }
+                document.getElementById('prediction').textContent = data.emission_prediction.toFixed(4);
+                const inputParams = document.getElementById('inputParams');
+                inputParams.innerHTML = '';
+                if (data.input_parameters) {
+                    for (const [key, value] of Object.entries(data.input_parameters)) {
+                        const li = document.createElement('li');
+                        li.textContent = `${key}: ${value}`;
+                        inputParams.appendChild(li);
+                    }
+                }
+                document.getElementById('result').style.display = 'block';
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('errorMessage').textContent = error.message;
+                document.getElementById('error').style.display = 'block';
+            }
+        });
+
+        document.getElementById('trajectoryForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            document.getElementById('trajectoryResults').style.display = 'none';
+            document.getElementById('trajectoryError').style.display = 'none';
+            
+            try {
+                const inputData = JSON.parse(document.getElementById('trajectoryInput').value);
+                
+                const response = await fetch('/reconstruct_trajectory', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(inputData)
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'An error occurred during trajectory analysis');
+                }
+                
+                document.getElementById('totalEmission').textContent = data.total_emission.toFixed(2);
+                
+                if (data.difference_percentage !== null) {
+                    document.getElementById('emissionDifference').textContent = 
+                        `Difference from original: ${data.difference_percentage.toFixed(2)}%`;
+                } else {
+                    document.getElementById('emissionDifference').textContent = '';
+                }
+                
+                // Create speed profile plot with original points
+                const speedTrace = {
+                    x: data.reconstructed_trajectory.times,
+                    y: data.reconstructed_trajectory.speeds,
+                    type: 'scatter',
+                    name: 'Reconstructed Speed',
+                    line: {color: 'blue'}
+                };
+                
+                const originalPoints = {
+                    x: inputData.points.map(p => p.time),
+                    y: inputData.points.map(p => p.speed),
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: 'Original Points',
+                    marker: {
+                        color: 'red',
+                        size: 10
+                    }
+                };
+                
+                Plotly.newPlot('speedPlot', [speedTrace, originalPoints], {
+                    title: 'Speed Profile',
+                    xaxis: {title: 'Time (s)'},
+                    yaxis: {title: 'Speed (m/s)'}
+                });
+                
+                // Create emission profile plot
+                const emissionTrace = {
+                    x: data.reconstructed_trajectory.times,
+                    y: data.reconstructed_trajectory.emissions,
+                    type: 'scatter',
+                    name: 'Estimated Emissions',
+                    line: {color: 'red'}
+                };
+                
+                Plotly.newPlot('emissionPlot', [emissionTrace], {
+                    title: 'Emission Profile',
+                    xaxis: {title: 'Time (s)'},
+                    yaxis: {title: 'Emission Rate (g/s)'}
+                });
+                
+                // Update trajectory table
+                const tableBody = document.getElementById('trajectoryTable');
+                tableBody.innerHTML = '';
+                
+                for (let i = 0; i < data.reconstructed_trajectory.times.length; i++) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${data.reconstructed_trajectory.times[i].toFixed(0)}</td>
+                        <td>${data.reconstructed_trajectory.speeds[i].toFixed(2)}</td>
+                        <td>${data.reconstructed_trajectory.accelerations[i].toFixed(2)}</td>
+                        <td>${data.reconstructed_trajectory.emissions[i].toFixed(3)}</td>
+                    `;
+                    tableBody.appendChild(row);
+                }
+                
+                document.getElementById('trajectoryResults').style.display = 'block';
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('trajectoryErrorMessage').textContent = error.message;
+                document.getElementById('trajectoryError').style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html> 
