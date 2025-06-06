@@ -195,10 +195,4 @@ For production deployment, consider:
 - Implementing proper logging and monitoring
 - Adding authentication and rate limiting
 
-## 📄 License
-
-MIT License
-
----
-
 **Note**: This is a development server. For production use, please use a proper WSGI server and follow security best practices. 
