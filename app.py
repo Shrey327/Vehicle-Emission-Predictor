@@ -9,20 +9,46 @@ import os
 
 # Configure TensorFlow to use less memory
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Reduce TensorFlow logging
-tf.config.threading.set_intra_op_parallelism_threads(1)
-tf.config.threading.set_inter_op_parallelism_threads(1)
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+os.environ['TF_GPU_THREAD_MODE'] = 'gpu_private'
 
 app = Flask(__name__)
 
-# Load the trained Keras model and scaler
-try:
-    emission_model = load_model('best_model (2).keras')
-    scaler = joblib.load('emission_scaler.pkl')
-    print("Keras model and scaler loaded successfully")
-except Exception as e:
-    print(f"Error loading model or scaler: {e}")
-    emission_model = None
-    scaler = None
+# Global variables for lazy loading
+emission_model = None
+scaler = None
+model_loaded = False
+
+def load_model_and_scaler():
+    """Lazy load the model and scaler when first needed."""
+    global emission_model, scaler, model_loaded
+    
+    if model_loaded:
+        return emission_model, scaler
+    
+    try:
+        # Configure TensorFlow memory settings
+        tf.config.threading.set_intra_op_parallelism_threads(1)
+        tf.config.threading.set_inter_op_parallelism_threads(1)
+        
+        # Try to limit TensorFlow GPU memory growth
+        try:
+            gpus = tf.config.experimental.list_physical_devices('GPU')
+            if gpus:
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+        except:
+            pass  # Ignore GPU config errors on CPU-only systems
+        
+        emission_model = load_model('best_model (2).keras')
+        scaler = joblib.load('emission_scaler.pkl')
+        model_loaded = True
+        print("Keras model and scaler loaded successfully")
+        return emission_model, scaler
+    except Exception as e:
+        print(f"Error loading model or scaler: {e}")
+        model_loaded = True  # Don't keep trying
+        return None, None
 
 def calculate_vsp(speed_ms, acceleration_ms2):
     """Calculates VSP (Vehicle Specific Power)."""
@@ -126,12 +152,33 @@ def adjust_prediction(speed_ms, acceleration_ms2, raw_prediction):
 def home():
     return render_template('index.html')
 
+@app.route('/health')
+def health():
+    """Health check endpoint."""
+    try:
+        model, scaler_obj = load_model_and_scaler()
+        status = {
+            'status': 'healthy',
+            'model_loaded': model is not None,
+            'scaler_loaded': scaler_obj is not None
+        }
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'model_loaded': False,
+            'scaler_loaded': False
+        }), 500
+
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
-        if emission_model is None:
+        # Load model and scaler when first needed
+        model, scaler_obj = load_model_and_scaler()
+        if model is None:
             return jsonify({'error': 'Model not loaded. Please check server logs.'}), 500
-        if scaler is None:
+        if scaler_obj is None:
             return jsonify({'error': 'Scaler not loaded. Please check server logs.'}), 500
         if not request.is_json:
             return jsonify({'error': 'Request must be JSON'}), 400
@@ -170,9 +217,9 @@ def predict():
         features = np.array([input_data], dtype=np.float32)
         
         # Scale features before prediction
-        scaled_features = scaler.transform(features)
+        scaled_features = scaler_obj.transform(features)
         
-        raw_prediction = emission_model.predict(scaled_features, verbose=0)[0][0]
+        raw_prediction = model.predict(scaled_features, verbose=0)[0][0]
         return jsonify({
             'emission_prediction': float(raw_prediction),
             'units': 'g/km',
