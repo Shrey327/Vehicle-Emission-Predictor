@@ -5,6 +5,12 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 import joblib
+import os
+
+# Configure TensorFlow to use less memory
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Reduce TensorFlow logging
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
 
 app = Flask(__name__)
 
@@ -227,4 +233,6 @@ def process_trajectory():
         return jsonify({'error': f'Trajectory reconstruction error: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False) 
